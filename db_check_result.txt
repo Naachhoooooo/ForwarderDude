@@ -1,0 +1,7 @@
+Checking database at /home/nachoo/Downloads/Projects/ForwarderDude/forwarder_dude.db
+Running integrity_check...
+Integrity check result: ('ok',)
+Testing table creation...
+Table created successfully.
+Table dropped successfully.
+Database is healthy.
