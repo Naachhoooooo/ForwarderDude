@@ -1,6 +1,6 @@
 # ForwarderDude 🚀
 
-**ForwarderDude** is a powerful and intelligent Telegram bot designed to automate message forwarding between chats, channels, and groups. With a sleek dashboard, real-time statistics, and robust administration tools, it simplifies managing content flow across your Telegram communities.
+**ForwarderDude** is a powerful and intelligent Telegram bot designed to automate message forwarding between channels and groups. With a sleek dashboard, real-time statistics, and robust administration tools, it simplifies managing content flow across your Telegram communities.
 
 ## ✨ Features
 
@@ -11,6 +11,10 @@
 - **Granular Control**: Pause and resume specific forwarding rules.
 - **Robust Error Handling**: Automatic retry mechanisms and detailed error logging (disk I/O, network issues).
 - **Secure**: User restriction and admin-only access for sensitive operations.
+
+> [!WARNING]
+> **For Private Use Only**
+> This bot is optimized for private or small group usage. Due to Telegram's strict API rate limits, using this bot for high-volume public forwarding may result in `FloodWait` errors or temporary bans. The bot includes adaptive rate limiting to mitigate this, but please use responsibly.
 
 ## 🛠 Installation
 
@@ -32,12 +36,16 @@
     ```
 
 4.  **Configuration:**
-    - Create a `.env` file in the root directory.
-    - Add your Telegram Bot Token and Admin IDs:
+    - Copy the example environment file:
+      ```bash
+      cp .env.example .env
+      ```
+    - Open `.env` and fill in your details:
       ```env
       BOT_TOKEN=your_bot_token_here
       ADMIN_IDS=123456789,987654321
       ```
+    - **Note**: You can find your Telegram User ID by messaging [@userinfobot](https://t.me/userinfobot).
 
 5.  **Initialize Database:**
     The bot will automatically check and initialize the SQLite database on first run.
