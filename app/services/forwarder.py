@@ -51,6 +51,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg_type = 'sticker'
     
     message_queue = get_message_queue()
+    
+    # Cache to prevent N+1 queries on user settings
+    settings_cache = {}
+    async def get_cached_setting(key, default=""):
+        if key not in settings_cache:
+            settings_cache[key] = await models.system.get_setting(key, default)
+        return settings_cache[key]
 
     for fw in forwards:
         # Check if forward is paused
@@ -63,11 +70,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
 
         # Get header/footer settings
-        header_text = await models.system.get_setting(
+        header_text = await get_cached_setting(
             f"user:{fw['user_id']}:header", ""
         ) if fw['header_enabled'] else ""
         
-        footer_text = await models.system.get_setting(
+        footer_text = await get_cached_setting(
             f"user:{fw['user_id']}:footer", ""
         ) if fw['footer_enabled'] else ""
         

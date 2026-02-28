@@ -12,29 +12,6 @@ class Config:
     # System defaults
     DEFAULT_MAX_FORWARDS = 5
     
-    # Rate Limiting Settings (Legacy - kept for compatibility)
-    PER_CHAT_RATE = 20  # messages per minute per chat
-    GLOBAL_RATE = 25     # messages per second globally
-    GLOBAL_BURST = 50    # burst capacity for global limiter
-    
-    # Adaptive Rate Limiter Settings
-    ADAPTIVE_RATE_ENABLED = True
-    
-    # Per-chat rate limits (messages per second) 
-    MIN_CHAT_RATE = 10 / 60  # Conservative: 10 msgs/min
-    MAX_CHAT_RATE = 25 / 60  # Aggressive: 25 msgs/min
-    DEFAULT_CHAT_RATE = 20 / 60  # Start: 20 msgs/min
-    
-    # Global rate limits (messages per second)
-    MIN_GLOBAL_RATE = 15      # Conservative: 15 msgs/sec
-    MAX_GLOBAL_RATE = 28      # Aggressive: 28 msgs/sec  
-    DEFAULT_GLOBAL_RATE = 25  # Start: 25 msgs/sec
-    
-    # Rate adjustment factors
-    RATE_INCREASE_FACTOR = 1.05  # 5% increase on success
-    RATE_DECREASE_FACTOR = 0.5   # 50% decrease on flood
-    SUCCESS_STREAK_FOR_INCREASE = 10  # Successes before increase
-    
     # Message Queue Settings  
     QUEUE_ENABLED = True
     QUEUE_WORKER_BATCH_SIZE = 10

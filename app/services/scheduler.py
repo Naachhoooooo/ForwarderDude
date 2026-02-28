@@ -1,6 +1,7 @@
 import logging
 from telegram.ext import ContextTypes
 from app.database.models import Models
+from app.services.message_queue import get_message_queue
 from datetime import datetime
 import json
 
@@ -51,21 +52,25 @@ async def check_schedules(context: ContextTypes.DEFAULT_TYPE):
 
             for dest_id in dest_ids:
                 try:
-                    if msg_type == 'text':
-                        await context.bot.send_message(chat_id=dest_id, text=final_text)
-                    else:
-                        if "sender" in filters:
-                             await context.bot.forward_message(chat_id=dest_id, from_chat_id=msg['source_chat_id'], message_id=msg['source_message_id'])
-                        else:
-                            await context.bot.copy_message(
-                                chat_id=dest_id, 
-                                from_chat_id=msg['source_chat_id'], 
-                                message_id=msg['source_message_id'],
-                                caption=final_caption,
-                                parse_mode='Markdown'
-                            )
+                    forward_mode = "sender" in filters
+                    message_data = {
+                        'text': final_text,
+                        'caption': final_caption,
+                        'forward_mode': forward_mode
+                    }
+                    
+                    message_queue = get_message_queue()
+                    await message_queue.enqueue(
+                        forward_id=fw['id'],
+                        dest_chat_id=dest_id,
+                        source_chat_id=msg['source_chat_id'],
+                        source_message_id=msg['source_message_id'],
+                        message_type=msg_type,
+                        message_data=message_data,
+                        priority=0
+                    )
                 except Exception as e:
-                    logger.error(f"Failed to forward buffered message to {dest_id}: {e}")
+                    logger.error(f"Failed to enqueue buffered message to {dest_id}: {e}")
         
         # Clear buffer after processing
         await models.forwards.clear_buffer(fw['id'])

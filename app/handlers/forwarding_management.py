@@ -187,11 +187,7 @@ async def forward_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, fw_
         # If message content is same, ignore
         pass
 
-async def forward_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    data = query.data
-    
-    # Maintenance Mode Check
+async def check_permissions(query) -> bool:
     from app.database.models import Models
     from app.config import Config
     models = Models()
@@ -202,146 +198,103 @@ async def forward_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if maintenance_mode == "on" and not is_admin:
         notice = await models.system.get_setting("maintenance_notice", "The bot is currently under maintenance. Please try again later.")
         await query.answer(f"🚧 Maintenance Mode - Activated\n\n{notice}\n\nWe are very sorry for the inconvenience", show_alert=True)
-        return
+        return False
     
-    # Check Restriction
     if user_id not in Config.ADMIN_IDS:
         user = await Models().users.get_user(user_id)
         if user and user['status'] == 'restricted':
             await query.answer("⛔ Access Restricted", show_alert=True)
-            return
+            return False
+            
+    return True
+
+async def handle_fw_test(update: Update, context: ContextTypes.DEFAULT_TYPE, query, fw_id: int):
+    details, dests = await Models().forwards.get_forward_details(fw_id)
+    if not details: return
     
-    if data.startswith("fw_test:"):
-        fw_id = int(data.split(":")[1])
+    success_count = 0
+    from telegram.error import TimedOut
+    from app.logger import get_logger
+    logger = get_logger('forwards')
+    
+    for dest in dests:
+        try:
+            await context.bot.send_message(chat_id=dest['dest_id'], text="**Test - Forwarder Dude**", parse_mode='Markdown')
+            success_count += 1
+        except TimedOut:
+             logger.warning(f"Test timed out for {dest['dest_id']}")
+        except Exception as e:
+             logger.error(f"Test failed for {dest['dest_id']}: {e}")
+    
+    logger.info(f"User {update.effective_user.id} initiated test for Forward {fw_id}")
+    
+    if success_count < len(dests):
+         await query.answer(f"⚠️ Test finished with failures ({success_count}/{len(dests)} sent).", show_alert=True)
+    else:
+         await query.answer(f"✅ Test Sent to {success_count} Destinations", show_alert=False)
 
-        details, dests = await Models().forwards.get_forward_details(fw_id)
-        if not details: return
-        
-        success_count = 0
-        from telegram.error import TimedOut
-        for dest in dests:
-            try:
-                await context.bot.send_message(chat_id=dest['dest_id'], text="**Test - Forwarder Dude**", parse_mode='Markdown')
-                success_count += 1
-            except TimedOut:
-                 # Retry logic could be added here, but for now we just log it differently
-                 from app.logger import get_logger
-                 get_logger('forwards').warning(f"Test timed out for {dest['dest_id']}")
-            except Exception as e:
-                # Use existing logger defined in forwarder.py usually, but here we need to get it or use print. 
-                # Better to use get_logger
-                from app.logger import get_logger
-                get_logger('forwards').error(f"Test failed for {dest['dest_id']}: {e}")
-        
-        from app.logger import get_logger
-        logger = get_logger('forwards')
-        logger.info(f"User {update.effective_user.id} initiated test for Forward {fw_id}")
-        
-        if success_count < len(dests):
-             await query.answer(f"⚠️ Test finished with failures ({success_count}/{len(dests)} sent).", show_alert=True)
-             logger.warning(f"Test for Forward {fw_id} had failures. Success: {success_count}/{len(dests)}")
-        else:
-             await query.answer(f"✅ Test Sent to {success_count} Destinations", show_alert=False)
-        return
+async def handle_fw_clear_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, query, fw_id: int):
+    details, dests = await Models().forwards.get_forward_details(fw_id)
+    keyboard = []
+    if len(dests) > 0:
+        keyboard.append([InlineKeyboardButton(f"Clear D1: {dests[0]['title']}", callback_data=f"fw_clear_dest:{fw_id}:1")])
+    if len(dests) > 1:
+        keyboard.append([InlineKeyboardButton(f"Clear D2: {dests[1]['title']}", callback_data=f"fw_clear_dest:{fw_id}:2")])
+    if len(dests) > 1:
+        keyboard.append([InlineKeyboardButton("🗑️ Clear Both", callback_data=f"fw_clear_dest:{fw_id}:0")])
+    keyboard.append([InlineKeyboardButton("⏎ Back", callback_data=f"fw_detail:{fw_id}")])
+    
+    await query.edit_message_text(
+        "*Clear Destination*\n\nSelect which destination(s) to clear:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
 
-    if data.startswith("fw_clear_menu:"):
-        # Show clear destination menu
-        fw_id = int(data.split(":")[1])
-        details, dests = await Models().forwards.get_forward_details(fw_id)
-        
-        keyboard = []
-        if len(dests) > 0:
-            keyboard.append([InlineKeyboardButton(f"Clear D1: {dests[0]['title']}", callback_data=f"fw_clear_dest:{fw_id}:1")])
-        if len(dests) > 1:
-            keyboard.append([InlineKeyboardButton(f"Clear D2: {dests[1]['title']}", callback_data=f"fw_clear_dest:{fw_id}:2")])
-        if len(dests) > 1:
-            keyboard.append([InlineKeyboardButton("🗑️ Clear Both", callback_data=f"fw_clear_dest:{fw_id}:0")])
-        keyboard.append([InlineKeyboardButton("⏎ Back", callback_data=f"fw_detail:{fw_id}")])
-        
-        await query.edit_message_text(
-            "*Clear Destination*\n\nSelect which destination(s) to clear:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-        return
+async def handle_fw_clear_dest(update: Update, context: ContextTypes.DEFAULT_TYPE, query, parts: list):
+    fw_id = int(parts[1])
+    pos = int(parts[2])
+    
+    if pos == 0:
+        await Models().forwards.clear_destination(fw_id, 1)
+        await Models().forwards.clear_destination(fw_id, 2)
+        await query.answer("✅ Both destinations cleared", show_alert=False)
+    else:
+        await Models().forwards.clear_destination(fw_id, pos)
+        await query.answer(f"✅ D{pos} cleared", show_alert=False)
+    
+    await forward_detail(update, context, fw_id=fw_id)
 
-    if data.startswith("fw_clear_dest:"):
-        # Clear destination handler
-        parts = data.split(":")
-        fw_id = int(parts[1])
-        pos = int(parts[2])
-        
-        if pos == 0:  # Clear both
-            await Models().forwards.clear_destination(fw_id, 1)
-            await Models().forwards.clear_destination(fw_id, 2)
-            await query.answer("✅ Both destinations cleared", show_alert=False)
-        else:
-            await Models().forwards.clear_destination(fw_id, pos)
-            await query.answer(f"✅ D{pos} cleared", show_alert=False)
-        
-        await forward_detail(update, context, fw_id=fw_id)
-        return
+async def handle_fw_rule(update: Update, context: ContextTypes.DEFAULT_TYPE, query, parts: list):
+    fw_id = int(parts[1])
+    rule_type = parts[2]
+    
+    details, dests = await Models().forwards.get_forward_details(fw_id)
+    import json
+    filters = json.loads(details['filters'])
+    
+    if rule_type == "sender":
+        if "sender" in filters: filters.remove("sender")
+        else: filters.append("sender")
+    else:
+        if rule_type in filters: filters.remove(rule_type)
+        else: filters.append(rule_type)
+    
+    await Models().db.execute('UPDATE forwards SET filters = ? WHERE id = ?', (json.dumps(filters), fw_id))
+    await forward_rules_menu(update, context, fw_id)
 
-    if data.startswith("fw_edit_dest:"):
-
-        parts = data.split(":")
-        fw_id = int(parts[1])
-        pos = int(parts[2])
-        context.user_data['edit_fw_id'] = fw_id
-        context.user_data['edit_fw_pos'] = pos
-        context.user_data['setup_page'] = 0
-        await show_edit_dest_selection(update, context)
-        return EDIT_DEST
-
-    if data.startswith("fw_chg_src:"):
-
-        fw_id = int(data.split(":")[1])
-        context.user_data['edit_fw_id'] = fw_id
-        context.user_data['setup_page'] = 0
-        await show_edit_source_selection(update, context)
-        return EDIT_SOURCE
-
-    if data.startswith("fw_rule:"):
-        # Explicit handling to avoid splitting issues
-        # format: fw_rule:fw_id:rule_type
-        parts = data.split(":")
-        fw_id = int(parts[1])
-        rule_type = parts[2]
-        
-        details, dests = await Models().forwards.get_forward_details(fw_id)
-        import json
-        filters = json.loads(details['filters'])
-        
-        if rule_type == "sender":
-            if "sender" in filters: filters.remove("sender")
-            else: filters.append("sender")
-        else:
-            if rule_type in filters: filters.remove(rule_type)
-            else: filters.append(rule_type)
-        
-        await Models().db.execute('UPDATE forwards SET filters = ? WHERE id = ?', (json.dumps(filters), fw_id))
-        await forward_rules_menu(update, context, fw_id)
-        return
-
-
-    try:
-        action, fw_id = data.split(":")
-        fw_id = int(fw_id)
-    except ValueError:
-        return # Handle unexpected format
-
-
+async def handle_fw_toggles(update: Update, context: ContextTypes.DEFAULT_TYPE, query, action: str, fw_id: int):
+    from app.logger import get_logger
+    logger = get_logger('forwards')
+    
     if action == "fw_pause":
         await Models().forwards.toggle_pause(fw_id)
-        from app.logger import get_logger
-        get_logger('forwards').info(f"Forward {fw_id} paused/resumed by user {update.effective_user.id}")
+        logger.info(f"Forward {fw_id} paused/resumed by user {update.effective_user.id}")
         await query.answer("✅ Status Updated", show_alert=False)
         await forward_detail(update, context, fw_id=fw_id)
         
     elif action == "fw_delete":
         await Models().forwards.delete_forward(fw_id)
-        from app.logger import get_logger
-        get_logger('forwards').info(f"Forward {fw_id} deleted by user {update.effective_user.id}")
+        logger.info(f"Forward {fw_id} deleted by user {update.effective_user.id}")
         await query.answer("🗑️ Forward Deleted", show_alert=False)
         await list_forwards(update, context)
         
@@ -360,8 +313,45 @@ async def forward_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "fw_rules":
         await forward_rules_menu(update, context, fw_id)
 
-    elif action == "fw_schedule":
-        # Ask for time
+async def forward_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not await check_permissions(query): return
+    
+    data = query.data
+    
+    if data.startswith("fw_test:"):
+        return await handle_fw_test(update, context, query, int(data.split(":")[1]))
+        
+    if data.startswith("fw_clear_menu:"):
+        return await handle_fw_clear_menu(update, context, query, int(data.split(":")[1]))
+        
+    if data.startswith("fw_clear_dest:"):
+        return await handle_fw_clear_dest(update, context, query, data.split(":"))
+        
+    if data.startswith("fw_edit_dest:"):
+        parts = data.split(":")
+        context.user_data['edit_fw_id'] = int(parts[1])
+        context.user_data['edit_fw_pos'] = int(parts[2])
+        context.user_data['setup_page'] = 0
+        await show_edit_dest_selection(update, context)
+        return EDIT_DEST
+        
+    if data.startswith("fw_chg_src:"):
+        context.user_data['edit_fw_id'] = int(data.split(":")[1])
+        context.user_data['setup_page'] = 0
+        await show_edit_source_selection(update, context)
+        return EDIT_SOURCE
+        
+    if data.startswith("fw_rule:"):
+        return await handle_fw_rule(update, context, query, data.split(":"))
+
+    try:
+        action, fw_id = data.split(":")
+        fw_id = int(fw_id)
+    except ValueError:
+        return
+        
+    if action == "fw_schedule":
         await query.edit_message_text(
             f"*Set Schedule for Forward {fw_id}*\n\n"
             "Send the daily time in `HH:MM` format (24h), e.g., `09:00` or `18:30`.\n"
@@ -371,6 +361,8 @@ async def forward_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         context.user_data['schedule_fw_id'] = fw_id
         return SET_SCHEDULE
+
+    return await handle_fw_toggles(update, context, query, action, fw_id)
 
 # --- Edit Handlers ---
 from app.utils.keyboards import chat_selection_keyboard

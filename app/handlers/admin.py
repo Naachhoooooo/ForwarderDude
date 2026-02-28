@@ -228,8 +228,7 @@ async def admin_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
-async def admin_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
+async def _get_performance_text() -> str:
     models = Models()
     daily = await models.system.get_daily_stats()
     lifetime = await models.system.get_lifetime_stats()
@@ -266,12 +265,11 @@ async def admin_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     db_size_str = format_bytes(db_size)
     
-    # Get queue statistics
     from app.services.message_queue import get_message_queue
     queue = get_message_queue()
     queue_stats = await queue.get_statistics()
 
-    text = (
+    return (
         "🚀 **Forwarder Dude - Dashboard**\n\n"
         f"📊 **Daily Stats:**\n"
         f"• Success: `{daily['forwards']}`\n"
@@ -280,12 +278,10 @@ async def admin_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• Success: `{lifetime['forwards']}`\n"
         f"• Failed: `{lifetime['failures']}`\n\n"
         f"👥 **Users:** `{total_users}`\n\n"
-        
         f"📬 **Message Queue:**\n"
         f"• Pending: `{queue_stats['pending']}`\n"
         f"• Processing: `{queue_stats['processing']}`\n"
         f"• Failed: `{queue_stats['failed']}`\n\n"
-      
         "🖥  **Server Info**\n\n"
         f"⏱️ **Uptime:** `{uptime_str}`\n\n"
         f"🌡️ **Temperature:** `{cpu_temp}`\n\n"
@@ -295,6 +291,10 @@ async def admin_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚙️ **Total CPU:** `{sys_stats['cpu']}%`\n"
         f"🧠 **Total RAM:** `{sys_stats['ram_used']}MB` / `{sys_stats['ram_total']}MB` ({sys_stats['ram_percent']}%)\n"
     )
+
+async def admin_performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    text = await _get_performance_text()
     
     keyboard = [
         [InlineKeyboardButton("✨ Generate Graph", callback_data="admin_perf_graph")],

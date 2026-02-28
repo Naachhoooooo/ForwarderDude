@@ -137,18 +137,6 @@ class Models:
             )
         ''')
 
-        await self.db.execute('''
-            CREATE TABLE IF NOT EXISTS rate_limit_stats (
-                chat_id INTEGER PRIMARY KEY,
-                current_rate REAL DEFAULT 0.333,
-                success_count INTEGER DEFAULT 0,
-                failure_count INTEGER DEFAULT 0,
-                last_flood_wait REAL DEFAULT 0,
-                last_adjusted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_chats_added_by ON chats(added_by)')
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_forwards_user ON forwards(user_id)')
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_forwards_source ON forwards(source_id)')

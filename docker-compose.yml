@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  forwarderdude:
+    build: .
+    container_name: forwarderdude_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./forwarder_dude.db:/app/forwarder_dude.db
