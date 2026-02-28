@@ -1,6 +1,6 @@
 # ForwarderDude 🚀
 
-**ForwarderDude** is a powerful and intelligent Telegram bot designed to automate message forwarding between channels and groups. With a sleek dashboard, real-time statistics, and robust administration tools, it simplifies managing content flow across your Telegram communities.
+**ForwarderDude** is a light-weight and intelligent Telegram bot designed to automate message forwarding between channels and groups. With a sleek dashboard, real-time statistics, and robust administration tools, it simplifies managing content flow across your Telegram communities.
 
 ## ✨ Features
 
