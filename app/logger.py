@@ -1,14 +1,22 @@
 import logging
 import os
 import sys
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
+import gzip
+import shutil
 
 LOGS_DIR = "logs"
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
-MAX_BYTES = 10 * 1024 * 1024
-BACKUP_COUNT = 5
+BACKUP_COUNT_DAYS = 14  # Keep 14 days of logs max
+
+def _compress_log(source, dest):
+    """Compresses daily log files into gzip to aggressively save disk space."""
+    with open(source, 'rb') as f_in:
+        with gzip.open(dest, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    os.remove(source)
 
 def setup_logger(name, log_file, level=logging.INFO, propagate=False):
     logger = logging.getLogger(name)
@@ -18,11 +26,18 @@ def setup_logger(name, log_file, level=logging.INFO, propagate=False):
     if not logger.handlers:
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         
-        file_handler = RotatingFileHandler(
+        # Rotates at midnight every day, keeping BACKUP_COUNT_DAYS days
+        file_handler = TimedRotatingFileHandler(
             os.path.join(LOGS_DIR, log_file),
-            maxBytes=MAX_BYTES,
-            backupCount=BACKUP_COUNT
+            when="midnight",
+            interval=1,
+            backupCount=BACKUP_COUNT_DAYS,
+            encoding='utf-8'
         )
+        # Compress rolled over logs to save space
+        file_handler.rotator = _compress_log
+        file_handler.namer = lambda name: name + ".gz"
+        
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
@@ -37,11 +52,15 @@ def configure_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     
-    error_handler = RotatingFileHandler(
+    error_handler = TimedRotatingFileHandler(
         os.path.join(LOGS_DIR, 'errors.log'),
-        maxBytes=MAX_BYTES,
-        backupCount=BACKUP_COUNT
+        when="midnight",
+        interval=1,
+        backupCount=BACKUP_COUNT_DAYS,
+        encoding='utf-8'
     )
+    error_handler.rotator = _compress_log
+    error_handler.namer = lambda name: name + ".gz"
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     root_logger.addHandler(error_handler)

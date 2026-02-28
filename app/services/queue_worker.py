@@ -127,6 +127,13 @@ class QueueWorker:
         
         try:
             # Send the message
+            import random
+            
+            # Anti-ban Jittering: random micro-sleep between 0.2 and 1.5 seconds
+            # This makes the bot appear like a human tapping 'forward' 
+            # instead of a machine making identical 0ms API requests
+            await asyncio.sleep(random.uniform(0.2, 1.5))
+            
             await self._send_message(
                 dest_chat_id,
                 source_chat_id,

@@ -73,6 +73,16 @@ async def start_system_monitoring(interval=60):
                             if (now - file_time).days > 7:
                                 os.remove(file_path)
                                 logger.info(f"Deleted old backup: {f}")
+                    
+                    # Run SQLite VACUUM to reclaim disk space
+                    try:
+                        logger.info("Running zero-downtime VACUUM on database to reclaim disk space...")
+                        db = Models().system.db
+                        await db.execute("VACUUM;")
+                        logger.info("Database VACUUM completed successfully.")
+                    except Exception as ve:
+                        logger.error(f"Failed to VACUUM database: {ve}")
+
                 except Exception as e:
                     logger.error(f"Daily backup failed: {e}")
 
