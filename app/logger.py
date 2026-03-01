@@ -2,31 +2,23 @@ import logging
 import os
 import sys
 from logging.handlers import TimedRotatingFileHandler
-import gzip
-import shutil
 
 LOGS_DIR = "logs"
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
+os.makedirs(LOGS_DIR, exist_ok=True)
 
-BACKUP_COUNT_DAYS = 14  # Keep 14 days of logs max
+BACKUP_COUNT_DAYS = 30  # Keep 30 days of logs max
 
-def _compress_log(source, dest):
-    """Compresses daily log files into gzip to aggressively save disk space."""
-    with open(source, 'rb') as f_in:
-        with gzip.open(dest, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    os.remove(source)
+# Standard detailed format: [Date Time] | [Level] | [LoggerName] [File:Line] | Message
+FORMATTER_STRING = '%(asctime)s | %(levelname)-8s | [%(name)s] %(filename)s:%(lineno)d | %(message)s'
 
-def setup_logger(name, log_file, level=logging.INFO, propagate=False):
+def _setup_logger(name: str, log_file: str, level=logging.INFO, propagate: bool = False) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.propagate = propagate
 
     if not logger.handlers:
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(FORMATTER_STRING)
         
-        # Rotates at midnight every day, keeping BACKUP_COUNT_DAYS days
         file_handler = TimedRotatingFileHandler(
             os.path.join(LOGS_DIR, log_file),
             when="midnight",
@@ -34,10 +26,6 @@ def setup_logger(name, log_file, level=logging.INFO, propagate=False):
             backupCount=BACKUP_COUNT_DAYS,
             encoding='utf-8'
         )
-        # Compress rolled over logs to save space
-        file_handler.rotator = _compress_log
-        file_handler.namer = lambda name: name + ".gz"
-        
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
@@ -48,41 +36,40 @@ def setup_logger(name, log_file, level=logging.INFO, propagate=False):
     return logger
 
 def configure_logging():
-    """Configure root and specific loggers. Call once at startup."""
+    """Configure root and specific domain loggers. Call once at startup in run.py."""
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     
-    error_handler = TimedRotatingFileHandler(
-        os.path.join(LOGS_DIR, 'errors.log'),
-        when="midnight",
-        interval=1,
-        backupCount=BACKUP_COUNT_DAYS,
-        encoding='utf-8'
-    )
-    error_handler.rotator = _compress_log
-    error_handler.namer = lambda name: name + ".gz"
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    root_logger.addHandler(error_handler)
-    
-    console = logging.StreamHandler(sys.stdout)
-    console.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    root_logger.addHandler(console)
+    if not root_logger.handlers:
+        error_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'errors.log'),
+            when="midnight",
+            interval=1,
+            backupCount=BACKUP_COUNT_DAYS,
+            encoding='utf-8'
+        )
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(logging.Formatter(FORMATTER_STRING))
+        root_logger.addHandler(error_handler)
+        
+        console = logging.StreamHandler(sys.stdout)
+        console.setFormatter(logging.Formatter(FORMATTER_STRING))
+        root_logger.addHandler(console)
 
-    setup_logger('bot', 'bot.log', level=logging.INFO)
-    setup_logger('system', 'system.log', level=logging.INFO)
-    setup_logger('forwards', 'forwards.log', level=logging.INFO)
+    # Initialize domain buckets so their handlers bind
+    _setup_logger('bot', 'bot.log', level=logging.INFO)
+    _setup_logger('system', 'system.log', level=logging.INFO)
+    _setup_logger('forwards', 'forwards.log', level=logging.INFO)
     
+    # Silence third-party noise
     logging.getLogger('httpx').setLevel(logging.WARNING)
     logging.getLogger('telegram').setLevel(logging.INFO)
 
-def get_logger(name):
-    """Get a pre-configured logger."""
-    if name in ['bot', 'system', 'forwards']:
-        return logging.getLogger(name)
+def get_logger(name: str) -> logging.Logger:
+    """Get a pre-configured logger attached to the requested domain.
+    
+    Usage:
+        from app.logger import get_logger
+        logger = get_logger(__name__)
+    """
     return logging.getLogger(name)
-
-bot_logger = setup_logger('bot', 'bot.log')
-system_logger = setup_logger('system', 'system.log')
-forwards_logger = setup_logger('forwards', 'forwards.log')
-error_logger = logging.getLogger('errors')
