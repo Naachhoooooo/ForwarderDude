@@ -3,7 +3,9 @@ from app.handlers.auth import start, auth_callback
 from app.handlers.chat_tracking import track_chat_member
 from app.handlers.menus import menu_callback
 from app.handlers.forwarding_setup import new_forward_handler
-from app.handlers.forwarding_management import list_forwards, forward_detail, forward_action, schedule_handler, edit_forward_handler
+from app.handlers.forward_list_handler import list_forwards, forward_detail
+from app.handlers.forward_schedule_handler import schedule_handler
+from app.handlers.forward_edit_handler import edit_forward_handler, forward_action
 from app.handlers.settings import settings_handler
 from app.handlers.admin import (
     admin_menu, admin_access_control, admin_maintenance, admin_invite, 
@@ -35,7 +37,7 @@ def register_handlers(application: Application):
     # Callback Handlers - Forwarding
     application.add_handler(CallbackQueryHandler(list_forwards, pattern="^fw_list_page:"))
     application.add_handler(CallbackQueryHandler(forward_detail, pattern="^fw_detail:"))
-    application.add_handler(CallbackQueryHandler(forward_action, pattern="^fw_(pause|delete|header|footer|rules|rule|schedule|test|clear_menu|clear_dest|edit_dest|chg_src)"))
+    application.add_handler(CallbackQueryHandler(forward_action, pattern="^fw_(pause|delete|header|footer|rules|rule|test|clear_menu|clear_dest)"))
     
     # Admin Handlers
     application.add_handler(broadcast_handler) # Must be before admin_maintenance
