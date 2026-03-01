@@ -1,14 +1,22 @@
 from .base import BaseRepository
 from datetime import datetime
+from app.utils.cache import system_settings_cache
 
 class SystemRepository(BaseRepository):
     # --- Settings ---
     async def set_setting(self, key, value):
         await self.db.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+        await system_settings_cache.set(key, value)
 
     async def get_setting(self, key, default=None):
+        if await system_settings_cache.contains(key):
+            return await system_settings_cache.get(key)
+            
         row = await self.db.fetch_one('SELECT value FROM settings WHERE key = ?', (key,))
-        return row['value'] if row else default
+        value = row['value'] if row else default
+        
+        await system_settings_cache.set(key, value)
+        return value
 
     # --- Stats ---
     async def increment_stat(self, stat_type):

@@ -42,17 +42,19 @@ async def send_with_retry(send_func, max_retries: int = None):
 
 
 class QueueWorker:
-    """Background worker that processes messages from the queue."""
+    """Background worker that processes messages from the queue concurrently."""
     
     def __init__(self, bot):
         self.bot = bot
         self.queue = get_message_queue()
         self.models = Models()
         self.running = False
-        self.worker_task: Optional[asyncio.Task] = None
+        self.main_task: Optional[asyncio.Task] = None
+        self.workers: list[asyncio.Task] = []
+        self.internal_queue = asyncio.Queue(maxsize=Config.QUEUE_WORKER_BATCH_SIZE * 2)
     
     async def start(self):
-        """Start the queue worker."""
+        """Start the queue worker and its worker pool."""
         if self.running:
             logger.warning("Queue worker already running")
             return
@@ -62,51 +64,87 @@ class QueueWorker:
         # Reset any stale processing items from previous crash
         await self.queue.reset_stale_processing()
         
-        self.worker_task = asyncio.create_task(self._process_loop())
-        logger.info("Queue worker started")
+        # Start worker tasks
+        num_workers = Config.QUEUE_WORKER_BATCH_SIZE
+        for i in range(num_workers):
+            task = asyncio.create_task(self._worker_task(i))
+            self.workers.append(task)
+            
+        # Start main loop that feeds the internal queue
+        self.main_task = asyncio.create_task(self._process_loop())
+        logger.info(f"Queue worker started with {num_workers} concurrent tasks")
     
     async def stop(self):
-        """Stop the queue worker."""
+        """Stop the queue worker and its worker pool."""
         self.running = False
         
-        if self.worker_task:
-            self.worker_task.cancel()
+        if self.main_task:
+            self.main_task.cancel()
+            
+        for worker in self.workers:
+            worker.cancel()
+            
+        # Wait for all tasks to finish cancellation
+        if self.main_task or self.workers:
+            tasks_to_wait = [self.main_task] + self.workers if self.main_task else self.workers
             try:
-                await self.worker_task
+                await asyncio.gather(*[t for t in tasks_to_wait if t is not None], return_exceptions=True)
             except asyncio.CancelledError:
                 pass
-        
+                
+        self.workers = []
         logger.info("Queue worker stopped")
     
     async def _process_loop(self):
-        """Main processing loop."""
+        """Main loop that fetches from DB and feeds the internal queue."""
         while self.running:
             try:
-                # Get batch of messages to process
-                messages = await self.queue.dequeue(limit=Config.QUEUE_WORKER_BATCH_SIZE)
-                
-                if not messages:
-                    # No messages, wait a bit
+                # If internal queue has space, fetch more
+                if self.internal_queue.qsize() < Config.QUEUE_WORKER_BATCH_SIZE:
+                    messages = await self.queue.dequeue(limit=Config.QUEUE_WORKER_BATCH_SIZE)
+                    
+                    if not messages:
+                        await asyncio.sleep(Config.QUEUE_PROCESSING_INTERVAL)
+                        continue
+                        
+                    for msg in messages:
+                        # Mark as processing in DB immediately so another instance doesn't grab it
+                        # (Relevant if running multiple bot instances)
+                        await self.queue.mark_processing(msg['id'])
+                        await self.internal_queue.put(msg)
+                else:
+                    # Internal queue is full, wait a bit
                     await asyncio.sleep(Config.QUEUE_PROCESSING_INTERVAL)
-                    continue
-                
-                # Process each message
-                for msg in messages:
-                    try:
-                        await self._process_message(msg)
-                    except Exception as e:
-                        error_logger.error(f"Error processing queue item {msg['id']}: {e}")
-                        await self.queue.mark_failed(
-                            msg['id'],
-                            str(e),
-                            retry=(msg['retry_count'] < Config.QUEUE_MAX_RETRIES)
-                        )
-                
+                    
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                error_logger.error(f"Error in queue worker loop: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop on persistent error
+                error_logger.error(f"Error in queue worker main loop: {e}")
+                await asyncio.sleep(1)
+
+    async def _worker_task(self, worker_id: int):
+        """Individual worker that processes messages from the internal queue."""
+        while self.running:
+            try:
+                msg = await self.internal_queue.get()
+                
+                try:
+                    await self._process_message(msg)
+                except Exception as e:
+                    error_logger.error(f"Worker {worker_id} error processing item {msg['id']}: {e}")
+                    await self.queue.mark_failed(
+                        msg['id'],
+                        str(e),
+                        retry=(msg['retry_count'] < Config.QUEUE_MAX_RETRIES)
+                    )
+                finally:
+                    self.internal_queue.task_done()
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                error_logger.error(f"Worker {worker_id} crashed: {e}")
+                await asyncio.sleep(1)
     
     async def _process_message(self, msg: dict):
         """

@@ -140,6 +140,6 @@ class Models:
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_chats_added_by ON chats(added_by)')
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_forwards_user ON forwards(user_id)')
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_forwards_source ON forwards(source_id)')
-        await self.db.execute('CREATE INDEX IF NOT EXISTS idx_queue_status ON message_queue(status)')
         await self.db.execute('CREATE INDEX IF NOT EXISTS idx_queue_dest ON message_queue(dest_chat_id)')
-        await self.db.execute('CREATE INDEX IF NOT EXISTS idx_queue_created ON message_queue(created_at)')
+        # Composite index for the queue worker dequeue query
+        await self.db.execute('CREATE INDEX IF NOT EXISTS idx_queue_dequeue ON message_queue(status, retry_count, priority DESC, created_at ASC)')
