@@ -2,7 +2,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 from app.database.models import Models
 from app.utils.keyboards import chat_selection_keyboard, main_menu_keyboard
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 import math
 
 # States
@@ -133,7 +135,7 @@ async def save_forward_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await Models().forwards.add_destination(fw_id, dest_id, 1)
     context.user_data['new_fw_id'] = fw_id
     
-    system_logger.info(f"User {user_id} created new forward rule '{name}' from {source_id} to {dest_id}")
+    logger.info(f"User {user_id} created new forward rule '{name}' from {source_id} to {dest_id}")
     
     # Proceed to Rules Setup
     await show_setup_rules(update, context)

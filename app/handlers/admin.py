@@ -3,7 +3,9 @@ from telegram.ext import ContextTypes, CallbackQueryHandler
 from app.database.models import Models
 from app.config import Config
 from app.utils.keyboards import main_menu_keyboard
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 import os
 
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -127,7 +129,7 @@ async def admin_user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_status = 'active' if user['status'] == 'restricted' else 'restricted'
         await query.answer(f"✅ Status Updated: {new_status.title()}", show_alert=False)
         await Models().users.update_user_status(user_id, new_status)
-        system_logger.info(f"User {user_id} status changed to {new_status} by admin {query.from_user.id}")
+        logger.info(f"User {user_id} status changed to {new_status} by admin {query.from_user.id}")
         await admin_user_detail(update, context, target_user_id=user_id)
 
 async def admin_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -137,7 +139,7 @@ async def admin_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == "admin_maint_toggle":
         await Models().system.set_setting("maintenance_mode", new_state)
-        system_logger.info(f"Maintenance mode set to {new_state} by admin {query.from_user.id}")
+        logger.info(f"Maintenance mode set to {new_state} by admin {query.from_user.id}")
         await query.answer(f"✅ Maintenance Mode {new_state.upper()}", show_alert=False)
         current = new_state
     
@@ -186,7 +188,7 @@ async def admin_notice_save(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     
     await Models().system.set_setting("maintenance_notice", text)
-    system_logger.info(f"Maintenance notice updated by admin {update.effective_user.id}")
+    logger.info(f"Maintenance notice updated by admin {update.effective_user.id}")
     
     await update.message.reply_text("✅ Notice updated", reply_markup=main_menu_keyboard(True))
     return ConversationHandler.END

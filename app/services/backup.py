@@ -2,7 +2,9 @@ import os
 import sqlite3
 from datetime import datetime
 from app.config import Config
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 def perform_backup():
     """Perform a safe backup of the SQLite database using native backup API."""
@@ -18,13 +20,13 @@ def perform_backup():
             with sqlite3.connect(backup_file) as dst:
                 src.backup(dst)
         
-        system_logger.info(f"Database backed up successfully to {backup_file}")
+        logger.info(f"Database backed up successfully to {backup_file}")
         
         # Cleanup old backups
         cleanup_old_backups()
         
     except Exception as e:
-        system_logger.error(f"Failed to backup database: {e}")
+        logger.error(f"Failed to backup database: {e}")
 
 def cleanup_old_backups():
     """Remove backups older than BACKUP_RETENTION_DAYS."""
@@ -39,9 +41,9 @@ def cleanup_old_backups():
             
             if (now - file_modified).days >= Config.BACKUP_RETENTION_DAYS:
                 os.remove(filepath)
-                system_logger.info(f"Removed old backup: {filename}")
+                logger.info(f"Removed old backup: {filename}")
     except Exception as e:
-        system_logger.error(f"Failed to cleanup old backups: {e}")
+        logger.error(f"Failed to cleanup old backups: {e}")
 
 async def schedule_daily_backup(context):
     """JobQueue wrapper for the backup function."""

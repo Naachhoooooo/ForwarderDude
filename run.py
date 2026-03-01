@@ -4,7 +4,7 @@ import sys
 import os
 from app.main import build_application
 from app.config import Config
-from app.logger import configure_logging, get_logger
+from app.logger import get_logger
 
 # Configure Logging
 configure_logging()

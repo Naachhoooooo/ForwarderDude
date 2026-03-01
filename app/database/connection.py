@@ -1,7 +1,9 @@
 import aiosqlite
 import asyncio
 from app.config import Config
-from app.logger import error_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 class MockCursor:
     def __init__(self, lastrowid, rowcount):
@@ -41,7 +43,7 @@ class Database:
             await self._configure_pragmas(conn)
             return conn
         except Exception as e:
-            error_logger.critical(f"Failed to connect to database: {e}")
+            logger.critical(f"Failed to connect to database: {e}")
             raise
 
     async def execute(self, query, params=()):
@@ -52,7 +54,7 @@ class Database:
                 res = MockCursor(cursor.lastrowid, cursor.rowcount)
                 return res
         except Exception as e:
-            error_logger.error(f"Database Error: {e} | Query: {query}")
+            logger.error(f"Database Error: {e} | Query: {query}")
             raise
         finally:
             await conn.close()
@@ -64,7 +66,7 @@ class Database:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
         except Exception as e:
-            error_logger.error(f"Database Fetch Error: {e} | Query: {query}")
+            logger.error(f"Database Fetch Error: {e} | Query: {query}")
             raise
         finally:
             await conn.close()
@@ -76,7 +78,7 @@ class Database:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
         except Exception as e:
-            error_logger.error(f"Database Fetch All Error: {e} | Query: {query}")
+            logger.error(f"Database Fetch All Error: {e} | Query: {query}")
             raise
         finally:
             await conn.close()

@@ -1,7 +1,9 @@
 from telegram import Update, ChatMember
 from telegram.ext import ContextTypes
 from app.database.models import Models
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 async def track_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -20,10 +22,10 @@ async def track_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Record chat addition
         await Models().chats.add_or_update_chat(chat.id, chat.title, chat.type, user.id)
 
-        system_logger.info(f"Bot added to chat {chat.title} ({chat.id}) by user {user.id}")
+        logger.info(f"Bot added to chat {chat.title} ({chat.id}) by user {user.id}")
 
     # Bot removed
     elif old_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR] and new_member.status in [ChatMember.LEFT, ChatMember.BANNED]:
         await Models().chats.update_chat_status(chat.id, 'kicked')
  
-        system_logger.info(f"Bot removed from chat {chat.title} ({chat.id})") 
+        logger.info(f"Bot removed from chat {chat.title} ({chat.id})") 

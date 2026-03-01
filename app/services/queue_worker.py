@@ -119,7 +119,7 @@ class QueueWorker:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                error_logger.error(f"Error in queue worker main loop: {e}")
+                logger.error(f"Error in queue worker main loop: {e}")
                 await asyncio.sleep(1)
 
     async def _worker_task(self, worker_id: int):
@@ -131,7 +131,7 @@ class QueueWorker:
                 try:
                     await self._process_message(msg)
                 except Exception as e:
-                    error_logger.error(f"Worker {worker_id} error processing item {msg['id']}: {e}")
+                    logger.error(f"Worker {worker_id} error processing item {msg['id']}: {e}")
                     await self.queue.mark_failed(
                         msg['id'],
                         str(e),
@@ -143,7 +143,7 @@ class QueueWorker:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                error_logger.error(f"Worker {worker_id} crashed: {e}")
+                logger.error(f"Worker {worker_id} crashed: {e}")
                 await asyncio.sleep(1)
     
     async def _process_message(self, msg: dict):
@@ -202,7 +202,7 @@ class QueueWorker:
                     f"Failed to send queue item {queue_id} (will retry): {error_msg}"
                 )
             else:
-                error_logger.error(
+                logger.error(
                     f"Permanently failed queue item {queue_id} "
                     f"after {msg['retry_count']} retries: {error_msg}"
                 )

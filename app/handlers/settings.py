@@ -2,7 +2,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, filters, CommandHandler
 from app.database.models import Models
 from app.utils.keyboards import main_menu_keyboard
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 
@@ -64,7 +66,7 @@ async def save_header(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     value = "" if text.lower() == 'none' else escape_markdown(text, version=2)
     await Models().system.set_setting(f"user:{user_id}:header", value)
-    system_logger.info(f"User {user_id} updated header setting")
+    logger.info(f"User {user_id} updated header setting")
     
     await update.message.reply_text("Header saved.", reply_markup=main_menu_keyboard(False))
     return ConversationHandler.END
@@ -86,7 +88,7 @@ async def save_footer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     value = "" if text.lower() == 'none' else escape_markdown(text, version=2)
     await Models().system.set_setting(f"user:{user_id}:footer", value)
-    system_logger.info(f"User {user_id} updated footer setting")
+    logger.info(f"User {user_id} updated footer setting")
     
     await update.message.reply_text("Footer saved.", reply_markup=main_menu_keyboard(False))
     return ConversationHandler.END

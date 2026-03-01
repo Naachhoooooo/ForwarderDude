@@ -1,7 +1,9 @@
 import logging
 from telegram.ext import Application
 from app.config import Config
-from app.logger import bot_logger, error_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Use centralized logger
 logger = bot_logger
@@ -38,7 +40,7 @@ def build_application():
     
     # Error handler
     async def error_handler(update, context):
-        error_logger.error(msg="Exception while handling an update:", exc_info=context.error)
+        logger.error(msg="Exception while handling an update:", exc_info=context.error)
     
     application.add_error_handler(error_handler)
     

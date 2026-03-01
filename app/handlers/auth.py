@@ -3,7 +3,9 @@ from telegram.ext import ContextTypes, ConversationHandler
 from app.database.models import Models
 from app.utils.keyboards import main_menu_keyboard, admin_approval_keyboard, welcome_keyboard
 from app.config import Config
-from app.logger import system_logger
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 from datetime import datetime, timedelta
 from app.handlers.menus import get_dashboard_text
 
@@ -18,7 +20,7 @@ async def _handle_invitation(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
         await models.invitations.mark_invitation_used(code, user.id)
         
-        system_logger.info(f"User {user.id} ({user.username}) joined via invitation from {invitation['created_by']}")
+        logger.info(f"User {user.id} ({user.username}) joined via invitation from {invitation['created_by']}")
         
         bot_username = context.bot.username
         await update.message.reply_text(
@@ -73,9 +75,9 @@ async def _handle_new_user_request(update: Update, context: ContextTypes.DEFAULT
                 parse_mode='Markdown'
             )
         except Exception as e:
-            system_logger.error(f"Failed to notify admin {admin_id}: {e}")
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
             
-    system_logger.info(f"New access request from {user.id} ({user.username})")
+    logger.info(f"New access request from {user.id} ({user.username})")
 
 async def _handle_restricted_blocked_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user, models, db_user):
     if db_user['status'] == 'pending':
@@ -128,7 +130,7 @@ async def _handle_restricted_blocked_user(update: Update, context: ContextTypes.
                     parse_mode='Markdown'
                 )
             except Exception as e:
-                system_logger.error(f"Failed to notify admin {admin_id}: {e}")
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -177,7 +179,7 @@ async def auth_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == 'auth_accept':
         await models.users.approve_user(user_id, query.from_user.id)
-        system_logger.info(f"User {user_id} approved by admin {query.from_user.id}")
+        logger.info(f"User {user_id} approved by admin {query.from_user.id}")
         await query.edit_message_text(f"✅ User {user_id} approved.")
 
         try:
@@ -209,7 +211,7 @@ async def auth_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     elif action == 'auth_reject':
         await models.users.reject_user(user_id)
-        system_logger.info(f"User {user_id} rejected by admin {query.from_user.id}")
+        logger.info(f"User {user_id} rejected by admin {query.from_user.id}")
         await query.edit_message_text(f"❌ User {user_id} rejected.")
         try:
             await context.bot.send_message(
