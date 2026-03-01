@@ -125,8 +125,11 @@ async def save_forward_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     source_id = context.user_data['new_forward_source']
     dest_id = context.user_data['new_forward_dest']
     
+    from telegram.helpers import escape_markdown
+    name_sanitized = escape_markdown(name, version=2)
+    
     # Create Forward
-    fw_id = await Models().forwards.create_forward(user_id, source_id, name, ["text","image","video","audio","document","sticker"])
+    fw_id = await Models().forwards.create_forward(user_id, source_id, name_sanitized, ["text","image","video","audio","document","sticker"])
     await Models().forwards.add_destination(fw_id, dest_id, 1)
     context.user_data['new_fw_id'] = fw_id
     

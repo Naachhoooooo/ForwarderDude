@@ -19,3 +19,7 @@ class Config:
     QUEUE_RETRY_BACKOFF_BASE = 2  # Exponential backoff
     QUEUE_CLEANUP_DAYS = 7
     QUEUE_PROCESSING_INTERVAL = 0.1  # Seconds between checks
+
+    # Backup Settings
+    BACKUP_DIR = os.getenv('BACKUP_DIR', 'backups')
+    BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '7'))

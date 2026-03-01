@@ -44,7 +44,10 @@ async def admin_access_control(update: Update, context: ContextTypes.DEFAULT_TYP
     end = start + per_page
     current_users = visible_users[start:end]
     
+    from telegram.helpers import escape_markdown
     text = f"**Access Control Menu**\n\nExisting Users: {len(visible_users)}"
+    # Convert text to safe MarkdownV2
+    text = f"*Access Control Menu*\n\nExisting Users: {len(visible_users)}"
     
     items = []
     for user in current_users:
@@ -55,8 +58,9 @@ async def admin_access_control(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             status_icon = "🟢"
 
+        safe_full_name = escape_markdown(user['full_name'], version=2) if user['full_name'] else "Unknown"
         items.append({
-            'text': f"{status_icon} {user['full_name']}",
+            'text': f"{status_icon} {safe_full_name}".replace('\\', ''), # Keyboard buttons don't need escaping, only text does
             'callback_data': f"admin_user:{user['id']}"
         })
         
@@ -68,7 +72,7 @@ async def admin_access_control(update: Update, context: ContextTypes.DEFAULT_TYP
                 back_callback="menu_admin",
                 refresh_callback=f"admin_access_page:{page}"
             ), 
-            parse_mode='Markdown'
+            parse_mode='MarkdownV2'
         )
     except Exception as e:
         if "Message is not modified" in str(e):

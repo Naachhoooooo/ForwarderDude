@@ -40,12 +40,18 @@ def get_forward_detail_text(details: dict, dests: list) -> str:
     if details['schedule_time']:
         schedule_line = f"• Schedule: 🕒 {details['schedule_time']}\n"
         
+    from telegram.helpers import escape_markdown
+    # Escape dynamic values that might contain problematic characters if they weren't sanitized before
+    safe_name = escape_markdown(details['name'], version=2) if details['name'] else "Unknown"
+    safe_source = escape_markdown(source_chat, version=2) if source_chat else "Unknown"
+    safe_dest = escape_markdown(dest_text, version=2) if dest_text else " None"
+
     return (
-        f"📱 *{details['name']}*\n"
+        f"📱 *{safe_name}*\n"
         f"──────────────\n"
         f"{status_icon} *Status:* {status_text}\n"
-        f"📤 *Source:* {source_chat}\n"
-        f"📥 *Destination(s):*{dest_text}\n\n"
+        f"📤 *Source:* {safe_source}\n"
+        f"📥 *Destination\\(s\\):*{safe_dest}\n\n"
         f"⚙️ *Configuration*\n"
         f"• Filters: {filters_str}\n"
         f"• Mode: {sender_mode}\n"
@@ -53,11 +59,13 @@ def get_forward_detail_text(details: dict, dests: list) -> str:
     )
 
 def get_forward_rules_text(details: dict) -> str:
+    from telegram.helpers import escape_markdown
+    safe_name = escape_markdown(details['name'], version=2) if details['name'] else "Unknown"
     return (
-        f"*Rules for {details['name']}*\n\n"
-        "Toggle content types to forward.\n"
-        "*Show Sender*: Forward message (with tag).\n"
-        "*Hide Sender*: Copy message (no tag)."
+        f"*Rules for {safe_name}*\n\n"
+        "Toggle content types to forward\\.\n"
+        "*Show Sender*: Forward message \\(with tag\\)\\.\n"
+        "*Hide Sender*: Copy message \\(no tag\\)\\."
     )
 
 def get_clear_dest_text() -> str:

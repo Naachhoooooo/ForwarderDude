@@ -26,6 +26,15 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Footer: {footer}\n\n"
         "Select an option to change:"
     )
+    # We are parsing with MarkdownV2 for safety, but existing legacy code used Markdown.
+    # Since header/footer are now escaped with version=2, we need to enforce that here or simply escape the hardcoded parts.
+    # Let's switch the whole menu to MarkdownV2 to properly handle escaped user inputs.
+    text_v2 = (
+        "*Settings*\n\n"
+        f"Header: {header}\n"
+        f"Footer: {footer}\n\n"
+        "Select an option to change:"
+    )
     
     keyboard = [
         [InlineKeyboardButton("Set Header", callback_data="set_header")],
@@ -34,9 +43,9 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     if query:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await query.edit_message_text(text_v2, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='MarkdownV2')
     else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await update.message.reply_text(text_v2, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='MarkdownV2')
 
 async def start_set_header(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -51,7 +60,9 @@ async def save_header(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.effective_user.id
     
-    value = "" if text.lower() == 'none' else text
+    from telegram.helpers import escape_markdown
+    
+    value = "" if text.lower() == 'none' else escape_markdown(text, version=2)
     await Models().system.set_setting(f"user:{user_id}:header", value)
     system_logger.info(f"User {user_id} updated header setting")
     
@@ -71,7 +82,9 @@ async def save_footer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.effective_user.id
     
-    value = "" if text.lower() == 'none' else text
+    from telegram.helpers import escape_markdown
+    
+    value = "" if text.lower() == 'none' else escape_markdown(text, version=2)
     await Models().system.set_setting(f"user:{user_id}:footer", value)
     system_logger.info(f"User {user_id} updated footer setting")
     

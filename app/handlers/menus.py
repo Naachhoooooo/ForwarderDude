@@ -24,9 +24,12 @@ async def get_dashboard_text(user, models=None):
     filled_len = int(success_rate / 100 * bar_len)
     progress_bar = "🟩" * filled_len + "⬜" * (bar_len - filled_len)
     
+    from telegram.helpers import escape_markdown
+    safe_name = escape_markdown(user.first_name, version=2) if user.first_name else "Unknown"
+    
     return (
         f"🚀 *Forwarder Dude* \n\n"
-        f"Hello, {user.first_name}! Ready to forward?\n\n"
+        f"Hello, {safe_name}\\! Ready to forward?\n\n"
         f"📈 *Today's Statistics*\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"⚡ *Processed:* `{success_count}` messages\n"
@@ -79,7 +82,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 dashboard_text,
                 reply_markup=main_menu_keyboard(is_admin),
-                parse_mode='Markdown'
+                parse_mode='MarkdownV2'
             )
         except Exception:
             pass

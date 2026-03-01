@@ -23,6 +23,12 @@ def build_application():
     job_queue = application.job_queue
     if job_queue:
         job_queue.run_repeating(check_schedules, interval=60, first=10)
+        
+        # Schedule Automated Backup
+        from app.services.backup import schedule_daily_backup
+        import datetime
+        # Run daily backup at 3:00 AM UTC
+        job_queue.run_daily(schedule_daily_backup, time=datetime.time(hour=3, minute=0))
     else:
         logger.error("JobQueue not available. Install python-telegram-bot[job-queue]")
 
