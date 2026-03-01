@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 from app.database.models import Models
 from app.utils.keyboards import main_menu_keyboard
-from app.handlers.forward_list_handler import check_permissions
+from app.handlers.forwards_lister import check_permissions
 from app.utils.templates import get_schedule_prompt_text
 
 SET_SCHEDULE = range(1)

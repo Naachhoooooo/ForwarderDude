@@ -6,7 +6,7 @@ from telegram.error import TimedOut
 
 from app.database.models import Models
 from app.utils.keyboards import chat_selection_keyboard
-from app.handlers.forward_list_handler import check_permissions, forward_detail, list_forwards
+from app.handlers.forwards_lister import check_permissions, forward_detail, list_forwards
 from app.utils.templates import (
     get_clear_dest_text,
     get_edit_dest_text,
