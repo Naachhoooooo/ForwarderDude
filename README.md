@@ -4,23 +4,38 @@
 
 ## ✨ Features
 
-- **Smart Forwarding**: Define rules to forward messages from source to multiple destinations.
-- **Real-time Statistics**: View processed message counts and success rates directly from the dashboard with visual progress bars.
-- **Admin Control Panel**: Manage the bot's settings, users, and maintenance mode.
-- **Maintenance Mode**: Admins can enable maintenance mode to temporarily disable bot features for users, with custom notice messages.
-- **Granular Control**: Pause and resume specific forwarding rules.
-- **Robust Error Handling**: Automatic retry mechanisms and detailed error logging (disk I/O, network issues).
-- **Secure**: User restriction and admin-only access for sensitive operations.
+- **Smart Forwarding**: Define rules to forward and filter messages from source to multiple destinations.
+- **Persistent Message Queue**: Built-in SQLite-backed message queue with automatic retries and exponential backoff. No messages are lost during downtime or rate limits.
+- **Automated Database Backups**: Daily hot-backups of the SQLite database to prevent data loss.
+- **System Monitoring**: Built-in real-time dashboard tracking bot RAM usage, CPU load, and hardware temperatures, complete with generated 7-day performance charts.
+- **Admin Control Panel**: Manage access control (approve/restrict users), generate unique invite links, and toggle global maintenance mode.
+- **Robust Error Handling**: Handles Telegram `FloodWait` automatically.
 
 > [!WARNING]
 > **For Private Use Only**
 > This bot is optimized for private or small group usage. Due to Telegram's strict API rate limits, using this bot for high-volume public forwarding may result in `FloodWait` errors or temporary bans. The bot includes adaptive rate limiting to mitigate this, but please use responsibly.
 
-## 🛠 Installation
+## 🐳 Docker Installation (Recommended)
+
+1.  **Clone the repository and set up environment:**
+    ```bash
+    git clone https://github.com/Naachhoooooo/ForwarderDude.git
+    cd ForwarderDude
+    cp .env.example .env
+    ```
+2.  **Edit `.env`** with your `BOT_TOKEN` and `ADMIN_IDS`.
+3.  **Deploy with Docker Compose:**
+    ```bash
+    docker-compose up -d
+    ```
+
+    *The bot will automatically create local `./data`, `./logs`, and `./backups` folders on your host machine to ensure your database and settings are never lost even if the container restarts.*
+
+## 🛠 Manual Installation
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/StartTheBot/ForwarderDude.git
+    git clone https://github.com/Naachhoooooo/ForwarderDude.git
     cd ForwarderDude
     ```
 
@@ -54,8 +69,10 @@
 
 1.  **Start the bot:**
     ```bash
-    python run.py
+    python -m app.main
     ```
+
+    *Alternatively, you can run the bot in the background using `nohup` or `systemd`.*
 
 2.  **Open Telegram:**
     Start a chat with your bot and send `/start`.

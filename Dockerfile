@@ -22,4 +22,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 
 # Run the application
-CMD ["python", "run.py"]
+CMD ["python", "-m", "app.main"]

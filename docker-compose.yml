@@ -10,4 +10,5 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./backups:/app/backups
       - ./forwarder_dude.db:/app/forwarder_dude.db
